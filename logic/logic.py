@@ -5,27 +5,30 @@ from ui.ui_main import Ui_MainWindow
 from ui.ui_login import Ui_LoginWindow # Asumsi Anda buat file UI login
 
 class LoginManager(QObject):
-    login_success = Signal(str) # Mengirim nama lengkap admin
-    login_failed = Signal(str)
+    # Definisi Signal (Harus sesuai dengan jumlah yang di-emit)
+    login_success = Signal(str, str)  # Parameter: nama_lengkap, role
+    login_failed = Signal(str)         # Parameter: pesan_error
 
     def __init__(self, db_manager):
         super().__init__()
         self.db = db_manager
 
     def attempt_login(self, username, password):
-        # Validasi input kosong
+        # 1. Validasi input kosong (Lakukan ini di awal)
         if not username or not password:
             self.login_failed.emit("Username dan Password wajib diisi!")
             return
 
-        # Cek ke Database
+        # 2. Cek ke Database
         user = self.db.check_login(username, password)
 
+        # 3. Tangani hasil pengecekan
         if user:
-            # Jika ditemukan, kirim sinyal sukses dengan nama lengkapnya
-            self.login_success.emit(user['nama_lengkap'])
+            # PASTIKAN mengirim 2 data (nama dan role) karena Signal minta 2
+            nama = user['nama_lengkap']
+            peran = user['role']
+            self.login_success.emit(nama, peran)
         else:
-            # Jika tidak ada, kirim sinyal gagal
             self.login_failed.emit("Username atau Password salah!")
             
 class LoginWindow(QMainWindow, Ui_LoginWindow):
@@ -48,9 +51,11 @@ class LoginWindow(QMainWindow, Ui_LoginWindow):
         # Memanggil fungsi attempt_login dari LoginManager
         self.login_auth.attempt_login(username, password)
 
-    def handle_success(self, nama):
-        QMessageBox.information(self, "Sukses", f"Selamat datang, {nama}")
-        self.main_app = MainWindowLogic(self.db)
+    def handle_success(self, nama, role): # Terima parameter role
+        QMessageBox.information(self, "Login Berhasil", f"Selamat datang, {nama} ({role})")
+        
+        # Buka MainWindow dengan menyertakan role
+        self.main_app = MainWindowLogic(self.db, role)
         self.main_app.show()
         self.close()
 
@@ -59,22 +64,103 @@ class LoginWindow(QMainWindow, Ui_LoginWindow):
 
 
 class MainWindowLogic(QMainWindow, Ui_MainWindow):
-    def __init__(self, db_manager):
+    def __init__(self, db_manager, role):
         super().__init__()
         self.setup_ui(self)
-        self.db = db_manager # Menerima database dari main.py
-        self.selected_id = None
+        self.db = db_manager
         
-        # Signal & Slots
+        # 1. BUAT VARIABELNYA DULU (PENTING!)
+        self.role = role 
+        
+        # 2. BARU PANGGIL FUNGSI YANG MENGGUNAKAN VARIABEL TERSEBUT
+        self.atur_hak_akses()
+        # Sambungkan Menu Sidebar
+        self.btn_menu_buku.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
+        self.btn_menu_anggota.clicked.connect(self.buka_menu_peminjam)
+        
+        # logic/logic.py di dalam __init__ MainWindowLogic
+
+        # Saat tombol Buku diklik, tampilkan halaman Index 0
+        self.btn_menu_buku.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
+
+        # Saat tombol Anggota diklik, tampilkan halaman Index 1
+        self.btn_menu_anggota.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))
+                
+                
+        # 2. Signal & Slots
         self.btn_simpan.clicked.connect(self.simpan_data)
         self.btn_hapus.clicked.connect(self.hapus_data)
         self.btn_batal.clicked.connect(self.batal_edit)
         self.search_input.textChanged.connect(self.cari_data)
         self.table.clicked.connect(self.isi_form_dari_tabel)
-        
+        self.input_cari_peminjam.textChanged.connect(self.cari_peminjam)
         self.load_data()
+    
+    def buka_menu_peminjam(self):
+        self.stacked_widget.setCurrentIndex(1)
+        self.load_data_peminjam()
+    
+    def load_data_peminjam(self):
+        # Ambil data dari tabel peminjaman di DB
+        data = self.db.ambil_semua_peminjaman() 
+        self.table_peminjam.setRowCount(0)
+        for row_data in data:
+            row = self.table_peminjam.rowCount()
+            self.table_peminjam.insertRow(row)
+            self.table_peminjam.setItem(row, 0, QTableWidgetItem(str(row_data['id_pinjam'])))
+            self.table_peminjam.setItem(row, 1, QTableWidgetItem(row_data['judul_buku']))
+            self.table_peminjam.setItem(row, 2, QTableWidgetItem(row_data['nim_peminjam']))
+            self.table_peminjam.setItem(row, 3, QTableWidgetItem(row_data['status']))
+    
+    def pinjam_buku(self):
+        # 1. Pastikan ada buku yang dipilih di tabel
+        row = self.table.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, "Peringatan", "Pilih buku yang ingin dipinjam!")
+            return
+        
+        id_buku = self.table.item(row, 0).text()
+        
+        # 2. Cek stok buku ke database
+        buku = self.db.ambil_buku_by_id(id_buku) # Anda perlu buat fungsi ini di db_buku.py
+        
+        if buku['stok'] > 0:
+            # 3. Jalankan transaksi (Simpan ke tabel peminjaman & Kurangi stok)
+            nim = "12345" # Contoh, nantinya bisa diambil dari input atau data login
+            if self.db.catat_peminjaman(id_buku, nim):
+                QMessageBox.information(self, "Sukses", "Buku berhasil dipinjam!")
+                self.load_data() # Refresh tabel agar stok terbaru muncul
+            else:
+                QMessageBox.critical(self, "Error", "Gagal memproses peminjaman.")
+        else:
+            QMessageBox.warning(self, "Stok Habis", "Maaf, stok buku ini sedang kosong!")
+    
+    def cari_peminjam(self):
+        keyword = self.search_peminjam.text()
+        hasil = self.db.cari_peminjaman(keyword)
 
-    # ... (lanjutkan dengan fungsi load_data, simpan_data, dll seperti kode sebelumnya)
+    def atur_hak_akses(self):
+        """Menyembunyikan fitur CRUD jika login sebagai Peminjam"""
+        if self.role == "Peminjam":
+            # Sembunyikan Form Input (Judul, Penulis, dll)
+            # Anda bisa menyembunyikan layout atau widget inputnya
+            self.judul_input.setDisabled(True)
+            self.penulis_input.setDisabled(True)
+            self.tahun_input.setDisabled(True)
+            self.genre_input.setDisabled(True)
+            
+            # Sembunyikan Tombol Aksi
+            self.btn_simpan.hide()
+            self.btn_hapus.hide()
+            self.btn_batal.hide()
+            
+            self.setWindowTitle("Sistem Perpustakaan - Mode Peminjam (Katalog)")
+            self.statusbar.showMessage("Mode Lihat: Anda hanya dapat mencari buku.")
+        else:
+            self.setWindowTitle("Sistem Perpustakaan - Mode Admin")
+            
+            
+
 
     def load_data(self, data_buku=None):
         if data_buku is None:

@@ -20,7 +20,8 @@ class DatabaseManager:
                     judul_buku TEXT NOT NULL,
                     tahun_terbit INTEGER,
                     genre_buku TEXT,
-                    penulis TEXT NOT NULL
+                    penulis TEXT NOT NULL,
+                    stok INTEGER DEFAULT 0
                 )
             ''')
             
@@ -37,6 +38,16 @@ class DatabaseManager:
             )
             ''')
             
+            cek = conn.execute("SELECT COUNT(*) FROM peminjaman").fetchone()[0]
+        
+            if cek == 0:
+                # Masukkan data dummy
+                conn.execute('''
+                    INSERT INTO peminjaman (id_buku, nim_peminjam, tgl_pinjam, tgl_kembali_seharusnya, status)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (1, 'F1D02410145', '2026-04-26', '2026-05-03', 'Dipinjam'))
+                print("Data peminjaman awal berhasil ditambahkan!")
+            
             conn.execute('''
             CREATE TABLE IF NOT EXISTS admin (
                 id_admin INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,6 +57,11 @@ class DatabaseManager:
                 role TEXT DEFAULT 'Petugas'
             )
             ''')
+            
+            conn.execute('''
+            INSERT OR IGNORE INTO admin (username, password, nama_lengkap, role)
+            VALUES (?, ?, ?, ?)
+             ''', ('peminjam1', '12345', 'Oktora Rizka', 'Peminjam'))
         
             # Opsional: Membuat admin default jika tabel masih kosong
             # Agar Anda bisa login untuk pertama kali
@@ -55,6 +71,8 @@ class DatabaseManager:
                     INSERT INTO admin (username, password, nama_lengkap, role)
                     VALUES (?, ?, ?, ?)
                 ''', ('admin', 'admin123', 'Administrator Utama', 'Super Admin'))
+            
+            
                 
     def check_login(self, username, password):
         with self.get_connection() as conn:
@@ -96,6 +114,21 @@ class DatabaseManager:
     def hapus_buku(self, id_buku):
         with self.get_connection() as conn:
             conn.execute('DELETE FROM buku WHERE id_buku = ?', (id_buku,))
+    
+    def ambil_semua_peminjaman(self):
+        with self.get_connection() as conn:
+            # Kita gunakan JOIN agar bisa menampilkan Judul Buku, bukan cuma ID-nya
+            query = '''
+                SELECT p.id_pinjam, b.judul_buku, p.nim_peminjam, p.status 
+                FROM peminjaman p
+                JOIN buku b ON p.id_buku = b.id_buku
+            '''
+            return conn.execute(query).fetchall()
+
+    def cari_peminjaman(self, keyword):
+        with self.get_connection() as conn:
+            query = "SELECT * FROM peminjaman WHERE nim_peminjam LIKE ?"
+            return conn.execute(query, (f'%{keyword}%',)).fetchall()
 
 # Contoh Penggunaan:
 if __name__ == "__main__":
