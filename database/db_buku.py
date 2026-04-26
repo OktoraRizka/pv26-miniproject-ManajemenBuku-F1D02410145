@@ -23,6 +23,45 @@ class DatabaseManager:
                     penulis TEXT NOT NULL
                 )
             ''')
+            
+            conn.execute('''
+            CREATE TABLE IF NOT EXISTS peminjaman (
+                id_pinjam INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_buku INTEGER,
+                nim_peminjam TEXT NOT NULL,
+                tgl_pinjam TEXT NOT NULL,
+                tgl_kembali_seharusnya TEXT NOT NULL,
+                tgl_kembali_aktual TEXT,
+                status TEXT DEFAULT 'Dipinjam',
+                FOREIGN KEY (id_buku) REFERENCES buku (id_buku)
+            )
+            ''')
+            
+            conn.execute('''
+            CREATE TABLE IF NOT EXISTS admin (
+                id_admin INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL,
+                nama_lengkap TEXT,
+                role TEXT DEFAULT 'Petugas'
+            )
+            ''')
+        
+            # Opsional: Membuat admin default jika tabel masih kosong
+            # Agar Anda bisa login untuk pertama kali
+            admin_ada = conn.execute('SELECT COUNT(*) FROM admin').fetchone()[0]
+            if admin_ada == 0:
+                conn.execute('''
+                    INSERT INTO admin (username, password, nama_lengkap, role)
+                    VALUES (?, ?, ?, ?)
+                ''', ('admin', 'admin123', 'Administrator Utama', 'Super Admin'))
+                
+    def check_login(self, username, password):
+        with self.get_connection() as conn:
+            # Mencari user yang username DAN passwordnya cocok
+            query = "SELECT * FROM admin WHERE username = ? AND password = ?"
+            return conn.execute(query, (username, password)).fetchone()
+            
     
     def tambah_buku(self, judul, tahun, genre, penulis):
         with self.get_connection() as conn:

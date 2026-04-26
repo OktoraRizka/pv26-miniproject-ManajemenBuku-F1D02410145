@@ -1,6 +1,62 @@
 import sys
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QTableWidgetItem, QApplication
+from PySide6.QtCore import QObject, Signal
 from ui.ui_main import Ui_MainWindow
+from ui.ui_login import Ui_LoginWindow # Asumsi Anda buat file UI login
+
+class LoginManager(QObject):
+    login_success = Signal(str) # Mengirim nama lengkap admin
+    login_failed = Signal(str)
+
+    def __init__(self, db_manager):
+        super().__init__()
+        self.db = db_manager
+
+    def attempt_login(self, username, password):
+        # Validasi input kosong
+        if not username or not password:
+            self.login_failed.emit("Username dan Password wajib diisi!")
+            return
+
+        # Cek ke Database
+        user = self.db.check_login(username, password)
+
+        if user:
+            # Jika ditemukan, kirim sinyal sukses dengan nama lengkapnya
+            self.login_success.emit(user['nama_lengkap'])
+        else:
+            # Jika tidak ada, kirim sinyal gagal
+            self.login_failed.emit("Username atau Password salah!")
+            
+class LoginWindow(QMainWindow, Ui_LoginWindow):
+    def __init__(self, db_manager):
+        super().__init__()
+        self.setup_ui(self)
+        self.db = db_manager
+        self.login_auth = LoginManager(self.db)
+        
+        # Baris yang menyebabkan error (pastikan nama fungsinya sama)
+        self.btn_login.clicked.connect(self.on_login_click) 
+        
+        self.login_auth.login_success.connect(self.handle_success)
+        self.login_auth.login_failed.connect(self.handle_error)
+    
+    def on_login_click(self):
+        username = self.user_input.text().strip()
+        password = self.pass_input.text().strip()
+        
+        # Memanggil fungsi attempt_login dari LoginManager
+        self.login_auth.attempt_login(username, password)
+
+    def handle_success(self, nama):
+        QMessageBox.information(self, "Sukses", f"Selamat datang, {nama}")
+        self.main_app = MainWindowLogic(self.db)
+        self.main_app.show()
+        self.close()
+
+    def handle_error(self, message):
+        QMessageBox.warning(self, "Gagal", message)
+
 
 class MainWindowLogic(QMainWindow, Ui_MainWindow):
     def __init__(self, db_manager):
