@@ -1,4 +1,5 @@
 import sys
+import os
 from database.db_buku import DatabaseManager
 from logic.logic import LoginWindow
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QFormLayout, QLineEdit, 
@@ -27,12 +28,7 @@ class Ui_MainWindow:
         self.label_menu = QLabel("MENU UTAMA")
         self.label_menu.setAlignment(Qt.AlignCenter)
         self.label_menu.setStyleSheet("font-weight: bold; font-size: 14px; margin-bottom: 10px;")
-        
-        self.btn_menu_buku = QPushButton("📚 Manajemen Buku")
-        self.btn_menu_buku.setFixedHeight(40)
-        self.btn_menu_anggota = QPushButton("👥 Data Peminjam")
-        self.btn_menu_anggota.setFixedHeight(40)
-        
+ 
         self.sidebar_layout.addWidget(self.label_menu)
         self.sidebar_layout.addWidget(self.btn_menu_buku)
         self.sidebar_layout.addWidget(self.btn_menu_anggota)
@@ -121,6 +117,13 @@ class Ui_MainWindow:
         # Status Bar
         self.statusbar = QStatusBar(MainWindow)
         MainWindow.setStatusBar(self.statusbar)
+        
+def load_stylesheet(file_path):
+    """Fungsi untuk membaca file QSS"""
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            return f.read()
+    return ""
 
 def main():
     app = QApplication(sys.argv)
@@ -132,4 +135,19 @@ def main():
     sys.exit(app.exec())
 
 if __name__ == "__main__":
-    main()
+    app = QApplication(sys.argv)
+    
+    # --- MENGHUBUNGKAN STYLE.QSS ---
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    style_path = os.path.join(base_dir, "style", "style.qss")
+    
+    # Terapkan style ke seluruh aplikasi
+    style_sheet = load_stylesheet(style_path)
+    app.setStyleSheet(style_sheet)
+    # -------------------------------
+
+    db = DatabaseManager()
+    login = LoginWindow(db)
+    login.show()
+    
+    sys.exit(app.exec())

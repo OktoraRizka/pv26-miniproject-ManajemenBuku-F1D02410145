@@ -87,12 +87,12 @@ class DatabaseManager:
             return conn.execute(query, (username, password)).fetchone()
         
             
-    def tambah_buku(self, judul, tahun, genre, penulis):
+    def tambah_buku(self, judul, tahun, genre, penulis, stok):
         with self.get_connection() as conn:
             conn.execute('''
-                INSERT INTO buku (judul_buku, tahun_terbit, genre_buku, penulis) 
-                VALUES (?, ?, ?, ?)
-            ''', (judul, tahun, genre, penulis))
+                INSERT INTO buku (judul_buku, tahun_terbit, genre_buku, penulis, stok) 
+                VALUES (?, ?, ?, ?, ?)
+            ''', (judul, tahun, genre, penulis, stok))
     
     def ambil_semua_buku(self):
         with self.get_connection() as conn:

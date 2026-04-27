@@ -1,0 +1,144 @@
+/* style/style.qss */
+
+QToolBar QToolButton:checked {
+    background-color: #34495E; /* Midnight Blue (Warna pilihan Anda) */
+    color: white;
+    border: 1px solid #2C3E50;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+/* Style saat menu di MenuBar sedang aktif */
+QMenuBar::item:checked {
+    background-color: #34495E;
+    color: white;
+}
+
+/* Jendela Utama */
+QMainWindow {
+    background-color: #ECF0F1;
+}
+
+/* Menu Bar di bagian atas */
+QMenuBar {
+    background-color: #2C3E50;
+    color: white;
+    padding: 2px;
+}
+
+QMenuBar::item {
+    background-color: transparent;
+}
+
+QMenuBar::item:selected {
+    background-color: #34495E;
+    border-radius: 3px;
+}
+
+/* Dropdown Menu */
+QMenu {
+    background-color: #2C3E50;
+    color: white;
+    border: 1px solid #34495E;
+}
+
+QMenu::item:selected {
+    background-color: #34495E;
+}
+
+/* ToolBar di bawah Menu Bar */
+QToolBar {
+    background-color: #BDC3C7; /* Sedikit lebih gelap dari background utama */
+    border-bottom: 1px solid #95A5A6;
+    spacing: 10px;
+    padding: 5px;
+}
+
+QToolBar QToolButton {
+    color: #2C3E50;
+    font-weight: bold;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: 5px 10px;
+}
+
+QToolBar QToolButton:hover {
+    background-color: #ECF0F1;
+    border: 1px solid #2C3E50;
+    border-radius: 4px;
+}
+
+/* Tabel (Sangat Penting untuk UI kita) */
+QTableWidget {
+    background-color: white;
+    alternate-background-color: #F7F9F9;
+    gridline-color: #D5DBDB;
+    color: #2C3E50;
+    border: 1px solid #BDC3C7;
+    border-radius: 4px;
+}
+
+QHeaderView::section {
+    background-color: #34495E;
+    color: white;
+    padding: 5px;
+    border: 1px solid #2C3E50;
+    font-weight: bold;
+}
+
+/* Input Field (QLineEdit) */
+QLineEdit {
+    background-color: white;
+    border: 2px solid #BDC3C7;
+    border-radius: 4px;
+    padding: 5px;
+    color: #2C3E50;
+    selection-background-color: #3498DB;
+}
+
+QLineEdit:focus {
+    border: 2px solid #34495E;
+}
+
+/* GroupBox (Form Panel) */
+QGroupBox {
+    font-weight: bold;
+    border: 2px solid #34495E;
+    border-radius: 6px;
+    margin-top: 10px;
+    padding-top: 15px;
+    color: #2C3E50;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 5px;
+}
+
+/* Tombol */
+QPushButton {
+    background-color: #2C3E50;
+    color: white;
+    border-radius: 4px;
+    padding: 8px 15px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #4E6A85;
+}
+
+QPushButton:pressed {
+    background-color: #1A252F;
+}
+
+/* Status Bar */
+QStatusBar {
+    background-color: #2C3E50;
+    color: white;
+}
+
+QStatusBar QLabel {
+    color: white;
+}
