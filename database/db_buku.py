@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import datetime
 
 class DatabaseManager:
     def __init__(self, db_name='database_buku.db'):
@@ -157,6 +158,21 @@ class DatabaseManager:
             # Hanya mengambil user dengan role Peminjam
             query = "SELECT id_user, username, nama_lengkap, role FROM user WHERE role = 'Peminjam'"
             return conn.execute(query).fetchall()
+        
+    def proses_peminjaman_baru(self, id_buku, id_user, status):
+        with self.get_connection() as conn:
+            tgl_sekarang = datetime.date.today().strftime("%Y-%m-%d")
+            # Default kembali 7 hari kemudian
+            tgl_kembali = (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+            
+            query = '''
+                INSERT INTO peminjaman (id_buku, id_peminjam, tgl_pinjam, tgl_kembali_seharusnya, status)
+                VALUES (?, ?, ?, ?, ?)
+            '''
+            conn.execute(query, (id_buku, id_user, tgl_sekarang, tgl_kembali, status))
+            
+            # Opsi: Kurangi stok buku secara otomatis
+            conn.execute("UPDATE buku SET stok = stok - 1 WHERE id_buku = ? AND stok > 0", (id_buku,))
 
 if __name__ == "__main__":
     db = DatabaseManager()

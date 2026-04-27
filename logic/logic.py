@@ -74,6 +74,13 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
         self.stok_input.setValidator(QIntValidator(0, 999)) # Hanya angka 0-999
         self.tahun_input.setValidator(QIntValidator(1000, 2099))
         
+        # Klik tabel user untuk isi ID Peminjam di form
+        self.table_daftar_user.clicked.connect(self.pilih_user_untuk_pinjam)
+
+        # Klik tombol simpan pinjaman
+        self.btn_simpan_pinjam.clicked.connect(self.simpan_peminjaman_admin)
+        self.btn_batal_pinjam.clicked.connect(self.reset_form_pinjam)
+        
         # 1. Atur Tampilan Berdasarkan Role
         self.atur_hak_akses()
         
@@ -380,6 +387,36 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
             self.table_daftar_user.setItem(row, 0, QTableWidgetItem(str(row_data['id_user'])))
             self.table_daftar_user.setItem(row, 1, QTableWidgetItem(row_data['username']))
             self.table_daftar_user.setItem(row, 2, QTableWidgetItem(row_data['nama_lengkap']))
+            
+    def pilih_user_untuk_pinjam(self):
+        """Mengambil ID User dari tabel daftar_user ke form input"""
+        row = self.table_daftar_user.currentRow()
+        if row >= 0:
+            id_user = self.table_daftar_user.item(row, 0).text()
+            self.id_user_pinjam.setText(id_user)
+            self.statusbar.showMessage(f"Menyiapkan peminjaman untuk User ID: {id_user}")
+
+    def simpan_peminjaman_admin(self):
+        id_buku = self.id_buku_pinjam.text().strip()
+        id_user = self.id_user_pinjam.text().strip()
+        status = self.status_pinjam_combo.currentText()
+
+        if not id_buku or not id_user:
+            QMessageBox.warning(self, "Peringatan", "Pilih User dan masukkan ID Buku!")
+            return
+
+        try:
+            self.db.proses_peminjaman_baru(id_buku, id_user, status)
+            QMessageBox.information(self, "Sukses", "Data peminjaman berhasil dicatat!")
+            self.reset_form_pinjam()
+            self.load_data() # Refresh stok di tabel buku
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal: {e}")
+
+    def reset_form_pinjam(self):
+        self.id_buku_pinjam.clear()
+        self.id_user_pinjam.clear()
+        self.status_pinjam_combo.setCurrentIndex(0)
             
     
 

@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QFormLayout, QLineEdit, 
                              QHBoxLayout, QPushButton, QLabel, QTableWidget, 
-                             QHeaderView, QStatusBar, QStackedWidget)
+                             QHeaderView, QStatusBar, QStackedWidget, QGroupBox, QFormLayout, QComboBox, QDateEdit, QHBoxLayout)
 
 class Ui_MainWindow:
     def setup_ui(self, MainWindow):
@@ -136,3 +136,34 @@ class Ui_MainWindow:
         # Status Bar
         self.statusbar = QStatusBar(MainWindow)
         MainWindow.setStatusBar(self.statusbar)
+                
+                # --- BAGIAN ATAS TABLE_DAFTAR_USER ---
+        self.group_pinjam = QGroupBox("Form Manajemen Peminjaman")
+        self.form_pinjam_layout = QFormLayout(self.group_pinjam)
+
+        # Input ID Buku (Bisa diganti QComboBox nanti jika ingin lebih canggih)
+        self.id_buku_pinjam = QLineEdit()
+        self.id_buku_pinjam.setPlaceholderText("Masukkan ID Buku")
+        self.form_pinjam_layout.addRow("ID Buku:", self.id_buku_pinjam)
+
+        # Input ID Peminjam (Otomatis terisi saat tabel diklik)
+        self.id_user_pinjam = QLineEdit()
+        self.id_user_pinjam.setReadOnly(True) # Biar tidak salah ketik, harus pilih dari tabel
+        self.id_user_pinjam.setPlaceholderText("Klik user pada tabel di bawah")
+        self.form_pinjam_layout.addRow("ID Peminjam:", self.id_user_pinjam)
+
+        # Status Peminjaman
+        self.status_pinjam_combo = QComboBox()
+        self.status_pinjam_combo.addItems(["Dipinjam", "Kembali", "Hilang"])
+        self.form_pinjam_layout.addRow("Status:", self.status_pinjam_combo)
+
+        # Tombol Aksi
+        self.layout_tombol_pinjam = QHBoxLayout()
+        self.btn_simpan_pinjam = QPushButton("Proses Pinjam")
+        self.btn_batal_pinjam = QPushButton("Batal")
+        self.layout_tombol_pinjam.addWidget(self.btn_simpan_pinjam)
+        self.layout_tombol_pinjam.addWidget(self.btn_batal_pinjam)
+        self.form_pinjam_layout.addRow(self.layout_tombol_pinjam)
+
+        # Masukkan GroupBox ini ke layout utama page_3 SEBELUM table_daftar_user
+        self.verticalLayout_page3.insertWidget(0, self.group_pinjam)
