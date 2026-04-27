@@ -106,13 +106,13 @@ class DatabaseManager:
             wildcard = f'%{keyword}%'
             return conn.execute(query, (wildcard, wildcard, wildcard)).fetchall()
     
-    def update_buku(self, id_buku, judul, tahun, genre, penulis):
+    def update_buku(self, id_buku, judul, tahun, genre, penulis, stok):
         with self.get_connection() as conn:
             conn.execute('''
                 UPDATE buku 
-                SET judul_buku=?, tahun_terbit=?, genre_buku=?, penulis=? 
+                SET judul_buku=?, tahun_terbit=?, genre_buku=?, penulis=?, stok=? 
                 WHERE id_buku=?
-            ''', (judul, tahun, genre, penulis, id_buku))
+            ''', (judul, tahun, genre, penulis, stok, id_buku))
     
     def hapus_buku(self, id_buku):
         with self.get_connection() as conn:
@@ -151,6 +151,12 @@ class DatabaseManager:
             '''
             wildcard = f'%{keyword}%'
             return conn.execute(query, (wildcard, wildcard)).fetchall()
+        
+    def ambil_semua_peminjam_user(self):
+        with self.get_connection() as conn:
+            # Hanya mengambil user dengan role Peminjam
+            query = "SELECT id_user, username, nama_lengkap, role FROM user WHERE role = 'Peminjam'"
+            return conn.execute(query).fetchall()
 
 if __name__ == "__main__":
     db = DatabaseManager()

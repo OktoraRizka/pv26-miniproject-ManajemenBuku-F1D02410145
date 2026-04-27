@@ -1,6 +1,7 @@
 import sys
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QTableWidgetItem, QApplication
 from PySide6.QtCore import QObject, Signal
+from PySide6.QtGui import QIntValidator
 from ui.ui_main import Ui_MainWindow
 from ui.ui_login import Ui_LoginWindow # Asumsi Anda buat file UI login
 
@@ -36,6 +37,7 @@ class LoginWindow(QMainWindow, Ui_LoginWindow):
         self.btn_login.clicked.connect(self.on_login_click) 
         self.login_auth.login_success.connect(self.handle_success)
         self.login_auth.login_failed.connect(self.handle_error)
+        
     
     def on_login_click(self):
         username = self.user_input.text().strip()
@@ -69,6 +71,8 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
         self.role = role 
         self.current_user_id = user_id
         self.selected_id = None
+        self.stok_input.setValidator(QIntValidator(0, 999)) # Hanya angka 0-999
+        self.tahun_input.setValidator(QIntValidator(1000, 2099))
         
         # 1. Atur Tampilan Berdasarkan Role
         self.atur_hak_akses()
@@ -87,6 +91,8 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
         self.table.clicked.connect(self.isi_form_dari_tabel)
         # Pastikan nama widget search di halaman peminjam benar (search_peminjam atau input_cari_peminjam)
         self.input_cari_peminjam.textChanged.connect(self.cari_peminjam)
+        
+        self.btn_menu_daftar_user.clicked.connect(self.buka_menu_daftar_user)   
         
         # 5. Load Data Awal
         self.load_data()
@@ -156,9 +162,14 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
             self.tahun_input.setDisabled(True)
             self.genre_input.setDisabled(True)
             self.penulis_input.setDisabled(True)
+            self.stok_input.setDisabled(True)
+            self.btn_menu_daftar_user.hide()
             self.setWindowTitle("Katalog Perpustakaan - Mode Peminjam")
+        elif self.role == "Super Admin":
+            self.btn_menu_daftar_user.show()
         else:
             self.setWindowTitle("Sistem Manajemen Perpustakaan - Super Admin")
+            
                         
     def load_data(self, data_buku=None):
         if data_buku is None:
@@ -173,12 +184,14 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
             self.table.setItem(row, 2, QTableWidgetItem(str(row_data['tahun_terbit'])))
             self.table.setItem(row, 3, QTableWidgetItem(row_data['genre_buku']))
             self.table.setItem(row, 4, QTableWidgetItem(row_data['penulis']))
+            self.table.setItem(row, 5, QTableWidgetItem(row_data['stok']))
 
     def simpan_data(self):
         judul = self.judul_input.text()
         penulis = self.penulis_input.text()
         tahun = self.tahun_input.text()
         genre = self.genre_input.text()
+        genre = self.stok_input.text()
 
         if not judul or not penulis:
             QMessageBox.warning(self, "Peringatan", "Judul dan Penulis wajib diisi!")
@@ -217,6 +230,12 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
             self.tahun_input.setText(self.table.item(row, 2).text())
             self.genre_input.setText(self.table.item(row, 3).text())
             self.penulis_input.setText(self.table.item(row, 4).text())
+            self.stok_input.setText(self.table.item(row, 5).text())
+            
+            # Ambil stok dari kolom ke-5 (indeks 5)
+            stok_val = self.table.item(row, 5).text() if self.table.item(row, 5) else "0"
+            self.stok_input.setText(stok_val)
+            
             self.btn_simpan.setText("Update Data")
 
     def cari_data(self):
@@ -230,6 +249,7 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
         self.tahun_input.clear()
         self.genre_input.clear()
         self.penulis_input.clear()
+        self.stok_input.clear()
         self.btn_simpan.setText("Simpan")
         self.table.clearSelection()
         
@@ -258,34 +278,33 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
             self.table.setItem(row, 2, QTableWidgetItem(str(row_data['tahun_terbit'])))
             self.table.setItem(row, 3, QTableWidgetItem(row_data['genre_buku']))
             self.table.setItem(row, 4, QTableWidgetItem(row_data['penulis']))
+            self.table.setItem(row, 5, QTableWidgetItem(str(row_data['stok'])))
     
     def simpan_data(self):
-        """Simpan buku baru atau update data buku yang sudah dipilih"""
         judul = self.judul_input.text().strip()
         penulis = self.penulis_input.text().strip()
         tahun = self.tahun_input.text().strip()
         genre = self.genre_input.text().strip()
-        
-        # Validasi minimal
+        stok = self.stok_input.text().strip() # Ambil input stok
+
         if not judul or not penulis:
             QMessageBox.warning(self, "Peringatan", "Judul dan Penulis harus diisi!")
             return
-        
+
         try:
             if self.selected_id:
-                # MODE UPDATE
-                self.db.update_buku(self.selected_id, judul, tahun, genre, penulis)
+                # Kirim variabel stok ke fungsi update_buku
+                self.db.update_buku(self.selected_id, judul, tahun, genre, penulis, stok)
                 self.statusbar.showMessage("Data buku berhasil diperbarui", 3000)
             else:
-                # MODE TAMBAH
-                self.db.tambah_buku(judul, tahun, genre, penulis)
+                # Jika tambah buku baru, pastikan fungsi tambah_buku juga mendukung stok
+                self.db.tambah_buku(judul, tahun, genre, penulis, stok)
                 self.statusbar.showMessage("Buku baru berhasil ditambahkan", 3000)
             
-            self.batal_edit()   # Reset form
-            self.load_data()    # Refresh tabel
-        
+            self.batal_edit()
+            self.load_data()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Terjadi kesalahan saat menyimpan:\n{e}")
+            QMessageBox.critical(self, "Error", f"Gagal simpan: {e}")
     
     def hapus_data(self):
         """Hapus buku yang dipilih di tabel"""
@@ -323,6 +342,7 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
             self.tahun_input.setText(self.table.item(row, 2).text())
             self.genre_input.setText(self.table.item(row, 3).text())
             self.penulis_input.setText(self.table.item(row, 4).text())
+            self.stok_input.setText(self.table.item(row, 5).text())
             
             self.btn_simpan.setText("Update Data")
             self.statusbar.showMessage(f"Mengedit Buku ID: {self.selected_id}")
@@ -334,10 +354,36 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
         self.penulis_input.clear()
         self.tahun_input.clear()
         self.genre_input.clear()
+        self.stok_input.clear()
         
         self.btn_simpan.setText("Simpan")
         self.table.clearSelection()
         self.statusbar.showMessage("Siap")
+        
+        
+    def buka_menu_daftar_user(self):
+    # Pindah ke halaman index 2 (Halaman baru Anda)
+        self.stacked_widget.setCurrentIndex(2)
+        self.load_daftar_user()
+        
+    def load_daftar_user(self):
+        # Ambil data dari database
+        data = self.db.ambil_semua_peminjam_user()
+        
+        self.table_daftar_user.setRowCount(0)
+        self.table_daftar_user.setColumnCount(3)
+        self.table_daftar_user.setHorizontalHeaderLabels(["ID", "Username", "Nama Lengkap"])
+
+        for row_data in data:
+            row = self.table_daftar_user.rowCount()
+            self.table_daftar_user.insertRow(row)
+            self.table_daftar_user.setItem(row, 0, QTableWidgetItem(str(row_data['id_user'])))
+            self.table_daftar_user.setItem(row, 1, QTableWidgetItem(row_data['username']))
+            self.table_daftar_user.setItem(row, 2, QTableWidgetItem(row_data['nama_lengkap']))
+            
+    
+
+    
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

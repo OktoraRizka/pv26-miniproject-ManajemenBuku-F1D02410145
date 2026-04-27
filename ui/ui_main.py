@@ -24,8 +24,11 @@ class Ui_MainWindow:
         self.btn_menu_buku.setFixedHeight(40)
         self.btn_menu_anggota = QPushButton("👥 Data Peminjam")
         self.btn_menu_anggota.setFixedHeight(40)
+        self.btn_menu_daftar_user = QPushButton("👥 Data Anggota")
+        self.btn_menu_daftar_user.setFixedHeight(40)
         
         self.sidebar_layout.addWidget(self.btn_menu_buku)
+        self.sidebar_layout.addWidget(self.btn_menu_daftar_user)
         self.sidebar_layout.addWidget(self.btn_menu_anggota)
         self.sidebar_layout.addStretch() # Mendorong tombol ke atas
         
@@ -53,6 +56,8 @@ class Ui_MainWindow:
         self.form_layout.addRow("Tahun Terbit:", self.tahun_input)
         self.genre_input = QLineEdit()
         self.form_layout.addRow("Genre:", self.genre_input)
+        self.stok_input = QLineEdit()
+        self.form_layout.addRow("Stok:", self.stok_input)
         self.layout_buku.addLayout(self.form_layout)
 
         # Tombol Aksi Buku
@@ -73,8 +78,8 @@ class Ui_MainWindow:
         self.layout_buku.addLayout(self.search_layout)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["ID", "Judul", "Tahun", "Genre", "Penulis"])
+        self.table.setColumnCount(6) # Ubah dari 5 menjadi 6
+        self.table.setHorizontalHeaderLabels(["ID", "Judul", "Tahun", "Genre", "Penulis", "Stok"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.layout_buku.addWidget(self.table)
 
@@ -104,6 +109,29 @@ class Ui_MainWindow:
         
         self.table_peminjam.setEditTriggers(QTableWidget.NoEditTriggers)
 
+        # --- (DAFTAR USER) ---
+        self.page_3 = QWidget()
+        self.page_3.setObjectName(u"page_3")
+
+        # Layout untuk halaman ketiga agar tabel memenuhi layar
+        self.verticalLayout_page3 = QVBoxLayout(self.page_3)
+        self.verticalLayout_page3.setObjectName(u"verticalLayout_page3")
+
+        # Membuat Tabel Daftar User
+        self.table_daftar_user = QTableWidget(self.page_3)
+        self.table_daftar_user.setObjectName(u"table_daftar_user")
+
+        # Mengatur kolom tabel
+        self.table_daftar_user.setColumnCount(3)
+        self.table_daftar_user.setHorizontalHeaderLabels(["ID User", "Username", "Nama Lengkap"])
+        # Membuat header tabel menyesuaikan lebar jendela
+        self.table_daftar_user.horizontalHeader().setStretchLastSection(True)
+
+        # Masukkan tabel ke layout halaman
+        self.verticalLayout_page3.addWidget(self.table_daftar_user)
+
+        # MASUKKAN HALAMAN KE STACKED WIDGET
+        self.stacked_widget.addWidget(self.page_3)
 
         # Status Bar
         self.statusbar = QStatusBar(MainWindow)
