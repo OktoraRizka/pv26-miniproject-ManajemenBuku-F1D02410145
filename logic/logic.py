@@ -5,32 +5,27 @@ from ui.ui_main import Ui_MainWindow
 from ui.ui_login import Ui_LoginWindow # Asumsi Anda buat file UI login
 
 class LoginManager(QObject):
-    # Definisi Signal (Harus sesuai dengan jumlah yang di-emit)
-    login_success = Signal(str, str)  # Parameter: nama_lengkap, role
-    login_failed = Signal(str)         # Parameter: pesan_error
+    # Parameter diubah menjadi 'object' agar bisa mengirim satu baris DB utuh
+    login_success = Signal(object)  
+    login_failed = Signal(str)
 
     def __init__(self, db_manager):
         super().__init__()
         self.db = db_manager
 
     def attempt_login(self, username, password):
-        # 1. Validasi input kosong (Lakukan ini di awal)
         if not username or not password:
             self.login_failed.emit("Username dan Password wajib diisi!")
             return
 
-        # 2. Cek ke Database
         user = self.db.check_login(username, password)
 
-        # 3. Tangani hasil pengecekan
         if user:
-            # PASTIKAN mengirim 2 data (nama dan role) karena Signal minta 2
-            nama = user['nama_lengkap']
-            peran = user['role']
-            self.login_success.emit(nama, peran)
+            # Kirim seluruh objek 'user' (Row) ke Signal
+            self.login_success.emit(user)
         else:
             self.login_failed.emit("Username atau Password salah!")
-            
+
 class LoginWindow(QMainWindow, Ui_LoginWindow):
     def __init__(self, db_manager):
         super().__init__()
@@ -38,62 +33,62 @@ class LoginWindow(QMainWindow, Ui_LoginWindow):
         self.db = db_manager
         self.login_auth = LoginManager(self.db)
         
-        # Baris yang menyebabkan error (pastikan nama fungsinya sama)
         self.btn_login.clicked.connect(self.on_login_click) 
-        
         self.login_auth.login_success.connect(self.handle_success)
         self.login_auth.login_failed.connect(self.handle_error)
     
     def on_login_click(self):
         username = self.user_input.text().strip()
         password = self.pass_input.text().strip()
-        
-        # Memanggil fungsi attempt_login dari LoginManager
         self.login_auth.attempt_login(username, password)
 
-    def handle_success(self, nama, role): # Terima parameter role
-        QMessageBox.information(self, "Login Berhasil", f"Selamat datang, {nama} ({role})")
-        
-        # Buka MainWindow dengan menyertakan role
-        self.main_app = MainWindowLogic(self.db, role)
-        self.main_app.show()
-        self.close()
+    def handle_success(self, user_data):
+        # Sekarang user_data adalah sqlite3.Row, akses pakai Nama Kolom!
+        try:
+            uid = user_data['id_user']      # Pastikan nama kolom di DB id_user
+            u_role = user_data['role']
+            u_nama = user_data['nama_lengkap']
+            
+            print(f"DEBUG - Login Sukses: {u_nama} (ID: {uid})")
+            
+            # Kirim data ke MainWindow
+            self.main_app = MainWindowLogic(self.db, u_role, uid)
+            self.main_app.show()
+            self.close()
+        except Exception as e:
+            QMessageBox.critical(self, "Error Logic", f"Gagal memproses data user: {e}")
 
     def handle_error(self, message):
         QMessageBox.warning(self, "Gagal", message)
 
-
 class MainWindowLogic(QMainWindow, Ui_MainWindow):
-    def __init__(self, db_manager, role):
+    def __init__(self, db_manager, role, user_id):
         super().__init__()
         self.setup_ui(self)
         self.db = db_manager
-        
-        # 1. BUAT VARIABELNYA DULU (PENTING!)
         self.role = role 
+        self.current_user_id = user_id
+        self.selected_id = None
         
-        # 2. BARU PANGGIL FUNGSI YANG MENGGUNAKAN VARIABEL TERSEBUT
+        # 1. Atur Tampilan Berdasarkan Role
         self.atur_hak_akses()
-        # Sambungkan Menu Sidebar
+        
+        # 2. Koneksi Navigasi Sidebar
         self.btn_menu_buku.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
         self.btn_menu_anggota.clicked.connect(self.buka_menu_peminjam)
         
-        # logic/logic.py di dalam __init__ MainWindowLogic
-
-        # Saat tombol Buku diklik, tampilkan halaman Index 0
-        self.btn_menu_buku.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
-
-        # Saat tombol Anggota diklik, tampilkan halaman Index 1
-        self.btn_menu_anggota.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))
-                
-                
-        # 2. Signal & Slots
+        # 3. Koneksi Tombol CRUD
         self.btn_simpan.clicked.connect(self.simpan_data)
         self.btn_hapus.clicked.connect(self.hapus_data)
         self.btn_batal.clicked.connect(self.batal_edit)
+        
+        # 4. Fitur Pencarian & Klik Tabel
         self.search_input.textChanged.connect(self.cari_data)
         self.table.clicked.connect(self.isi_form_dari_tabel)
+        # Pastikan nama widget search di halaman peminjam benar (search_peminjam atau input_cari_peminjam)
         self.input_cari_peminjam.textChanged.connect(self.cari_peminjam)
+        
+        # 5. Load Data Awal
         self.load_data()
     
     def buka_menu_peminjam(self):
@@ -101,15 +96,19 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
         self.load_data_peminjam()
     
     def load_data_peminjam(self):
-        # Ambil data dari tabel peminjaman di DB
-        data = self.db.ambil_semua_peminjaman() 
+        if self.role == "Super Admin":
+            data = self.db.ambil_semua_peminjaman()
+        else:
+            data = self.db.ambil_peminjaman_by_user(self.current_user_id)
+        
         self.table_peminjam.setRowCount(0)
         for row_data in data:
             row = self.table_peminjam.rowCount()
             self.table_peminjam.insertRow(row)
+            # Gunakan key dict karena sudah pakai row_factory = sqlite3.Row
             self.table_peminjam.setItem(row, 0, QTableWidgetItem(str(row_data['id_pinjam'])))
             self.table_peminjam.setItem(row, 1, QTableWidgetItem(row_data['judul_buku']))
-            self.table_peminjam.setItem(row, 2, QTableWidgetItem(row_data['nim_peminjam']))
+            self.table_peminjam.setItem(row, 2, QTableWidgetItem(str(row_data['nama_lengkap'])))
             self.table_peminjam.setItem(row, 3, QTableWidgetItem(row_data['status']))
     
     def pinjam_buku(self):
@@ -136,43 +135,44 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
             QMessageBox.warning(self, "Stok Habis", "Maaf, stok buku ini sedang kosong!")
     
     def cari_peminjam(self):
-        keyword = self.search_peminjam.text()
-        hasil = self.db.cari_peminjaman(keyword)
+        keyword = self.input_cari_peminjam.text()
+        data = self.db.cari_peminjaman(keyword)
+        # Update tabel peminjam dengan hasil cari
+        self.table_peminjam.setRowCount(0)
+        for row_data in data:
+            row = self.table_peminjam.rowCount()
+            self.table_peminjam.insertRow(row)
+            self.table_peminjam.setItem(row, 0, QTableWidgetItem(str(row_data['id_pinjam'])))
+            self.table_peminjam.setItem(row, 1, QTableWidgetItem(row_data['judul_buku']))
+            self.table_peminjam.setItem(row, 2, QTableWidgetItem(str(row_data['nama_lengkap'])))
+            self.table_peminjam.setItem(row, 3, QTableWidgetItem(row_data['status']))
 
     def atur_hak_akses(self):
-        """Menyembunyikan fitur CRUD jika login sebagai Peminjam"""
         if self.role == "Peminjam":
-            # Sembunyikan Form Input (Judul, Penulis, dll)
-            # Anda bisa menyembunyikan layout atau widget inputnya
-            self.judul_input.setDisabled(True)
-            self.penulis_input.setDisabled(True)
-            self.tahun_input.setDisabled(True)
-            self.genre_input.setDisabled(True)
-            
-            # Sembunyikan Tombol Aksi
             self.btn_simpan.hide()
             self.btn_hapus.hide()
             self.btn_batal.hide()
-            
-            self.setWindowTitle("Sistem Perpustakaan - Mode Peminjam (Katalog)")
-            self.statusbar.showMessage("Mode Lihat: Anda hanya dapat mencari buku.")
+            self.judul_input.setDisabled(True)
+            self.tahun_input.setDisabled(True)
+            self.genre_input.setDisabled(True)
+            self.penulis_input.setDisabled(True)
+            self.setWindowTitle("Katalog Perpustakaan - Mode Peminjam")
         else:
-            self.setWindowTitle("Sistem Perpustakaan - Mode Admin")
-            
-            
-
-
+            self.setWindowTitle("Sistem Manajemen Perpustakaan - Super Admin")
+                        
     def load_data(self, data_buku=None):
         if data_buku is None:
             data_buku = self.db.ambil_semua_buku()
+        
         self.table.setRowCount(0)
-        for row_idx, row_data in enumerate(data_buku):
-            self.table.insertRow(row_idx)
-            self.table.setItem(row_idx, 0, QTableWidgetItem(str(row_data['id_buku'])))
-            self.table.setItem(row_idx, 1, QTableWidgetItem(row_data['judul_buku']))
-            self.table.setItem(row_idx, 2, QTableWidgetItem(str(row_data['tahun_terbit'])))
-            self.table.setItem(row_idx, 3, QTableWidgetItem(row_data['genre_buku']))
-            self.table.setItem(row_idx, 4, QTableWidgetItem(row_data['penulis']))
+        for row_data in data_buku:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            self.table.setItem(row, 0, QTableWidgetItem(str(row_data['id_buku'])))
+            self.table.setItem(row, 1, QTableWidgetItem(row_data['judul_buku']))
+            self.table.setItem(row, 2, QTableWidgetItem(str(row_data['tahun_terbit'])))
+            self.table.setItem(row, 3, QTableWidgetItem(row_data['genre_buku']))
+            self.table.setItem(row, 4, QTableWidgetItem(row_data['penulis']))
 
     def simpan_data(self):
         judul = self.judul_input.text()
@@ -211,12 +211,13 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
 
     def isi_form_dari_tabel(self):
         row = self.table.currentRow()
-        self.selected_id = int(self.table.item(row, 0).text())
-        self.judul_input.setText(self.table.item(row, 1).text())
-        self.tahun_input.setText(self.table.item(row, 2).text())
-        self.genre_input.setText(self.table.item(row, 3).text())
-        self.penulis_input.setText(self.table.item(row, 4).text())
-        self.btn_simpan.setText("Update Data")
+        if row >= 0:
+            self.selected_id = int(self.table.item(row, 0).text())
+            self.judul_input.setText(self.table.item(row, 1).text())
+            self.tahun_input.setText(self.table.item(row, 2).text())
+            self.genre_input.setText(self.table.item(row, 3).text())
+            self.penulis_input.setText(self.table.item(row, 4).text())
+            self.btn_simpan.setText("Update Data")
 
     def cari_data(self):
         keyword = self.search_input.text()

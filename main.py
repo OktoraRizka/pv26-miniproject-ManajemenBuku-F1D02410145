@@ -106,13 +106,13 @@ class Ui_MainWindow:
         self.search_layout_p = QHBoxLayout()
         self.search_layout_p.addWidget(QLabel("Cari Peminjam:"))
         self.cari_peminjam = QLineEdit()
-        self.cari_peminjam.setPlaceholderText("Masukkan NIM atau Nama...")
+        self.cari_peminjam.setPlaceholderText("Masukkan ID atau Nama...")
         self.search_layout_p.addWidget(self.cari_peminjam)
         self.layout_peminjam.addLayout(self.search_layout_p)
         
         self.table_peminjam = QTableWidget()
         self.table_peminjam.setColumnCount(4)
-        self.table_peminjam.setHorizontalHeaderLabels(["ID Pinjam", "Judul Buku", "NIM Peminjam", "Status"])
+        self.table_peminjam.setHorizontalHeaderLabels(["ID Pinjam", "Judul Buku", "ID Peminjam", "Status"])
         self.table_peminjam.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.layout_peminjam.addWidget(self.table_peminjam)
         

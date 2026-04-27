@@ -79,7 +79,9 @@ class Ui_MainWindow:
         self.layout_buku.addWidget(self.table)
 
         self.stacked_widget.addWidget(self.page_buku)
-
+        
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+       
         # ---------------------------------------------------------
         # HALAMAN 2: DATA PEMINJAM (Index 1)
         # ---------------------------------------------------------
@@ -99,6 +101,9 @@ class Ui_MainWindow:
         self.layout_peminjam.addWidget(self.table_peminjam)
 
         self.stacked_widget.addWidget(self.page_peminjam)
+        
+        self.table_peminjam.setEditTriggers(QTableWidget.NoEditTriggers)
+
 
         # Status Bar
         self.statusbar = QStatusBar(MainWindow)

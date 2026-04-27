@@ -9,11 +9,13 @@ class DatabaseManager:
     
     def get_connection(self):
         conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
+        # PENTING: Membuat hasil query bisa dipanggil dengan nama kolom
+        conn.row_factory = sqlite3.Row 
         return conn
 
     def create_table(self):
         with self.get_connection() as conn:
+            # 1. TABEL BUKU
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS buku (
                     id_buku INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,62 +27,65 @@ class DatabaseManager:
                 )
             ''')
             
+            # 2. TABEL USER (Dipindah ke atas agar Foreign Key di peminjaman bisa merujuk ke sini)
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS user (
+                    id_user INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password TEXT NOT NULL,
+                    nama_lengkap TEXT,
+                    role TEXT DEFAULT 'Petugas'
+                )
+            ''')
+            
+            # 3. TABEL PEMINJAMAN
+            # Ubah id_peminjam menjadi INTEGER agar cocok dengan id_user
             conn.execute('''
             CREATE TABLE IF NOT EXISTS peminjaman (
                 id_pinjam INTEGER PRIMARY KEY AUTOINCREMENT,
                 id_buku INTEGER,
-                nim_peminjam TEXT NOT NULL,
+                id_peminjam INTEGER NOT NULL, 
                 tgl_pinjam TEXT NOT NULL,
                 tgl_kembali_seharusnya TEXT NOT NULL,
                 tgl_kembali_aktual TEXT,
                 status TEXT DEFAULT 'Dipinjam',
-                FOREIGN KEY (id_buku) REFERENCES buku (id_buku)
+                FOREIGN KEY (id_buku) REFERENCES buku (id_buku),
+                FOREIGN KEY (id_peminjam) REFERENCES user (id_user)
             )
             ''')
             
-            cek = conn.execute("SELECT COUNT(*) FROM peminjaman").fetchone()[0]
-        
-            if cek == 0:
-                # Masukkan data dummy
+            # --- SEEDING DATA (Data Awal) ---
+            
+            # Tambahkan User Default (Admin & Peminjam)
+            # Menggunakan INSERT OR IGNORE agar tidak error jika sudah ada
+            conn.execute("INSERT OR IGNORE INTO user (id_user, username, password, nama_lengkap, role) VALUES (?, ?, ?, ?, ?)",
+                         (1, 'peminjam1', '12345', 'Oktora Rizka', 'Peminjam'))
+            conn.execute("INSERT OR IGNORE INTO user (id_user, username, password, nama_lengkap, role) VALUES (?, ?, ?, ?, ?)",
+                         (2, 'admin', 'admin123', 'Fajar', 'Super Admin'))
+
+            # Tambahkan Buku Dummy jika kosong (agar id_buku=1 tersedia untuk peminjaman)
+            cek_buku = conn.execute("SELECT COUNT(*) FROM buku").fetchone()[0]
+            if cek_buku == 0:
+                conn.execute("INSERT INTO buku (id_buku, judul_buku, penulis) VALUES (?, ?, ?)", 
+                             (1, 'Hujan', 'Tere Liye'))
+
+            # Tambahkan Peminjaman Dummy jika kosong
+            cek_pinjam = conn.execute("SELECT COUNT(*) FROM peminjaman").fetchone()[0]
+            if cek_pinjam == 0:
                 conn.execute('''
-                    INSERT INTO peminjaman (id_buku, nim_peminjam, tgl_pinjam, tgl_kembali_seharusnya, status)
+                    INSERT INTO peminjaman (id_buku, id_peminjam, tgl_pinjam, tgl_kembali_seharusnya, status)
                     VALUES (?, ?, ?, ?, ?)
-                ''', (1, 'F1D02410145', '2026-04-26', '2026-05-03', 'Dipinjam'))
+                ''', (1, 1, '2026-04-27', '2026-04-30', 'Dipinjam'))
                 print("Data peminjaman awal berhasil ditambahkan!")
-            
-            conn.execute('''
-            CREATE TABLE IF NOT EXISTS admin (
-                id_admin INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL,
-                nama_lengkap TEXT,
-                role TEXT DEFAULT 'Petugas'
-            )
-            ''')
-            
-            conn.execute('''
-            INSERT OR IGNORE INTO admin (username, password, nama_lengkap, role)
-            VALUES (?, ?, ?, ?)
-             ''', ('peminjam1', '12345', 'Oktora Rizka', 'Peminjam'))
-        
-            # Opsional: Membuat admin default jika tabel masih kosong
-            # Agar Anda bisa login untuk pertama kali
-            admin_ada = conn.execute('SELECT COUNT(*) FROM admin').fetchone()[0]
-            if admin_ada == 0:
-                conn.execute('''
-                    INSERT INTO admin (username, password, nama_lengkap, role)
-                    VALUES (?, ?, ?, ?)
-                ''', ('admin', 'admin123', 'Administrator Utama', 'Super Admin'))
-            
-            
-                
+
     def check_login(self, username, password):
         with self.get_connection() as conn:
-            # Mencari user yang username DAN passwordnya cocok
-            query = "SELECT * FROM admin WHERE username = ? AND password = ?"
+            query = "SELECT * FROM user WHERE username = ? AND password = ?"
+            # fetchone() akan mengembalikan satu baris data utuh sebagai objek Row
+            print(conn.execute(query, (username, password)).fetchone())
             return conn.execute(query, (username, password)).fetchone()
+        
             
-    
     def tambah_buku(self, judul, tahun, genre, penulis):
         with self.get_connection() as conn:
             conn.execute('''
@@ -90,12 +95,10 @@ class DatabaseManager:
     
     def ambil_semua_buku(self):
         with self.get_connection() as conn:
-            # Mengurutkan berdasarkan judul buku agar tampilan di GUI lebih rapi
             return conn.execute('SELECT * FROM buku ORDER BY judul_buku').fetchall()
     
     def cari_buku(self, keyword):
         with self.get_connection() as conn:
-            # Mencari berdasarkan judul atau penulis
             query = '''
                 SELECT * FROM buku 
                 WHERE judul_buku LIKE ? OR penulis LIKE ? OR genre_buku LIKE ?
@@ -117,21 +120,38 @@ class DatabaseManager:
     
     def ambil_semua_peminjaman(self):
         with self.get_connection() as conn:
-            # Kita gunakan JOIN agar bisa menampilkan Judul Buku, bukan cuma ID-nya
             query = '''
-                SELECT p.id_pinjam, b.judul_buku, p.nim_peminjam, p.status 
+                SELECT p.id_pinjam, b.judul_buku, u.nama_lengkap, p.status 
                 FROM peminjaman p
                 JOIN buku b ON p.id_buku = b.id_buku
+                JOIN user u ON p.id_peminjam = u.id_user
             '''
             return conn.execute(query).fetchall()
+    
+    def ambil_peminjaman_by_user(self, identifier):
+        with self.get_connection() as conn:
+            query = '''
+                SELECT p.id_pinjam, b.judul_buku, u.nama_lengkap, p.status 
+                FROM peminjaman p
+                JOIN buku b ON p.id_buku = b.id_buku
+                JOIN user u ON p.id_peminjam = u.id_user
+                WHERE p.id_peminjam = ?
+            '''
+            return conn.execute(query, (identifier,)).fetchall()
 
     def cari_peminjaman(self, keyword):
         with self.get_connection() as conn:
-            query = "SELECT * FROM peminjaman WHERE nim_peminjam LIKE ?"
-            return conn.execute(query, (f'%{keyword}%',)).fetchall()
+            # Cari berdasarkan nama peminjam atau judul buku
+            query = '''
+                SELECT p.id_pinjam, b.judul_buku, u.nama_lengkap, p.status 
+                FROM peminjaman p
+                JOIN buku b ON p.id_buku = b.id_buku
+                JOIN user u ON p.id_peminjam = u.id_user
+                WHERE u.nama_lengkap LIKE ? OR b.judul_buku LIKE ?
+            '''
+            wildcard = f'%{keyword}%'
+            return conn.execute(query, (wildcard, wildcard)).fetchall()
 
-# Contoh Penggunaan:
 if __name__ == "__main__":
     db = DatabaseManager()
-    # db.tambah_buku("Laskar Pelangi", 2005, "Fiksi", "Andrea Hirata")
     print("Database siap digunakan!")
