@@ -5,9 +5,10 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QIntValidator
 from ui.ui_main import Ui_MainWindow
 from ui.ui_login import Ui_LoginWindow
+from PySide6.QtGui import QColor
+import datetime
 
 class LoginManager(QObject):
-    # Parameter diubah menjadi 'object' agar bisa mengirim satu baris DB utuh
     login_success = Signal(object)  
     login_failed = Signal(str)
 
@@ -23,7 +24,6 @@ class LoginManager(QObject):
         user = self.db.check_login(username, password)
 
         if user:
-            # Kirim seluruh objek 'user' (Row) ke Signal
             self.login_success.emit(user)
         else:
             self.login_failed.emit("Username atau Password salah!")
@@ -68,24 +68,24 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
         self.role = role 
         self.current_user_id = user_id
         self.selected_id = None
-        # Validator Input (Hanya Angka)
+        # Validator Input
         self.stok_input.setValidator(QIntValidator(0, 999))
         self.tahun_input.setValidator(QIntValidator(1000, 2099))
         
-        # 1. Koneksi Navigasi Menu Bar (Ganti dari .clicked ke .triggered)
+        # Koneksi Navigasi Menu Bar 
         self.action_manajemen_buku.triggered.connect(lambda: self.stacked_widget.setCurrentIndex(0))
         self.action_data_peminjam.triggered.connect(self.buka_menu_peminjam)
         self.action_data_anggota.triggered.connect(self.buka_menu_daftar_user)
         self.action_exit.triggered.connect(self.close) 
 
-        # 2. Koneksi Tombol CRUD & Form Peminjaman
+        # Koneksi Tombol CRUD & Form Peminjaman
         self.btn_simpan.clicked.connect(self.simpan_data)
         self.btn_hapus.clicked.connect(self.hapus_data)
         self.btn_batal.clicked.connect(self.batal_edit)
         self.btn_simpan_pinjam.clicked.connect(self.simpan_peminjaman_admin)
         self.btn_batal_pinjam.clicked.connect(self.reset_form_pinjam)
         
-        # 3. Fitur Tabel & Pencarian
+        # Fitur Tabel & Pencarian
         self.table.clicked.connect(self.isi_form_dari_tabel)
         self.table_daftar_user.clicked.connect(self.pilih_user_untuk_pinjam)
         self.search_input.textChanged.connect(self.cari_data)
@@ -93,7 +93,7 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
         
         self.action_about.triggered.connect(self.tampilkan_tentang_aplikasi)
         
-        # 4. Inisialisasi Tampilan
+        # Inisialisasi Tampilan
         self.atur_hak_akses()
         self.load_data()
         
@@ -101,7 +101,7 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
     def atur_hak_akses(self):
         """Mengatur visibilitas menu dan tombol berdasarkan role"""
         if self.role == "Peminjam":
-            # Sembunyikan menu Data Anggota (Action, bukan Button)
+            # Sembunyikan menu Data Anggota
             self.action_data_anggota.setVisible(False)
             
             # Kunci input manajemen buku
@@ -175,16 +175,28 @@ class MainWindowLogic(QMainWindow, Ui_MainWindow):
     
     def load_data_peminjam(self):
         data = self.db.ambil_semua_peminjaman() if self.role == "Super Admin" else \
-               self.db.ambil_peminjaman_by_user(self.current_user_id)
+            self.db.ambil_peminjaman_by_user(self.current_user_id)
         
         self.table_peminjam.setRowCount(0)
         for row_data in data:
             row = self.table_peminjam.rowCount()
             self.table_peminjam.insertRow(row)
+            
+            # Kolom 0-3
             self.table_peminjam.setItem(row, 0, QTableWidgetItem(str(row_data['id_pinjam'])))
             self.table_peminjam.setItem(row, 1, QTableWidgetItem(row_data['judul_buku']))
             self.table_peminjam.setItem(row, 2, QTableWidgetItem(str(row_data['nama_lengkap'])))
             self.table_peminjam.setItem(row, 3, QTableWidgetItem(row_data['status']))
+            
+            # Kolom 4: Tanggal Pinjam
+            self.table_peminjam.setItem(row, 4, QTableWidgetItem(str(row_data['tgl_pinjam'])))
+            
+            # Kolom 5: Tanggal Kembali
+            self.table_peminjam.setItem(row, 5, QTableWidgetItem(str(row_data['tgl_kembali_seharusnya'])))
+            tgl_kembali = datetime.datetime.strptime(row_data['tgl_kembali_seharusnya'], "%Y-%m-%d").date()
+            if tgl_kembali < datetime.date.today() and row_data['status'] == "Dipinjam":
+                item_tgl = self.table_peminjam.item(row, 5)
+                item_tgl.setForeground(QColor("red")) 
 
     def buka_menu_daftar_user(self):
         self.stacked_widget.setCurrentIndex(2)

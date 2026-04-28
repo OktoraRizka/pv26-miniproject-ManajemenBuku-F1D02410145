@@ -10,13 +10,11 @@ class DatabaseManager:
     
     def get_connection(self):
         conn = sqlite3.connect(self.db_path)
-        # PENTING: Membuat hasil query bisa dipanggil dengan nama kolom
         conn.row_factory = sqlite3.Row 
         return conn
 
     def create_table(self):
         with self.get_connection() as conn:
-            # 1. TABEL BUKU
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS buku (
                     id_buku INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +26,6 @@ class DatabaseManager:
                 )
             ''')
             
-            # 2. TABEL USER (Dipindah ke atas agar Foreign Key di peminjaman bisa merujuk ke sini)
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS user (
                     id_user INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,8 +36,6 @@ class DatabaseManager:
                 )
             ''')
             
-            # 3. TABEL PEMINJAMAN
-            # Ubah id_peminjam menjadi INTEGER agar cocok dengan id_user
             conn.execute('''
             CREATE TABLE IF NOT EXISTS peminjaman (
                 id_pinjam INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,35 +49,11 @@ class DatabaseManager:
                 FOREIGN KEY (id_peminjam) REFERENCES user (id_user)
             )
             ''')
-            
-            # --- SEEDING DATA (Data Awal) ---
-            
-            # Tambahkan User Default (Admin & Peminjam)
-            # Menggunakan INSERT OR IGNORE agar tidak error jika sudah ada
-            conn.execute("INSERT OR IGNORE INTO user (id_user, username, password, nama_lengkap, role) VALUES (?, ?, ?, ?, ?)",
-                         (1, 'peminjam1', '12345', 'Oktora Rizka', 'Peminjam'))
-            conn.execute("INSERT OR IGNORE INTO user (id_user, username, password, nama_lengkap, role) VALUES (?, ?, ?, ?, ?)",
-                         (2, 'admin', 'admin123', 'Fajar', 'Super Admin'))
-
-            # Tambahkan Buku Dummy jika kosong (agar id_buku=1 tersedia untuk peminjaman)
-            cek_buku = conn.execute("SELECT COUNT(*) FROM buku").fetchone()[0]
-            if cek_buku == 0:
-                conn.execute("INSERT INTO buku (id_buku, judul_buku, penulis) VALUES (?, ?, ?)", 
-                             (1, 'Hujan', 'Tere Liye'))
-
-            # Tambahkan Peminjaman Dummy jika kosong
-            cek_pinjam = conn.execute("SELECT COUNT(*) FROM peminjaman").fetchone()[0]
-            if cek_pinjam == 0:
-                conn.execute('''
-                    INSERT INTO peminjaman (id_buku, id_peminjam, tgl_pinjam, tgl_kembali_seharusnya, status)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (1, 1, '2026-04-27', '2026-04-30', 'Dipinjam'))
-                print("Data peminjaman awal berhasil ditambahkan!")
+        
 
     def check_login(self, username, password):
         with self.get_connection() as conn:
             query = "SELECT * FROM user WHERE username = ? AND password = ?"
-            # fetchone() akan mengembalikan satu baris data utuh sebagai objek Row
             print(conn.execute(query, (username, password)).fetchone())
             return conn.execute(query, (username, password)).fetchone()
         
@@ -121,28 +92,29 @@ class DatabaseManager:
     
     def ambil_semua_peminjaman(self):
         with self.get_connection() as conn:
-            query = '''
-                SELECT p.id_pinjam, b.judul_buku, u.nama_lengkap, p.status 
+            query = """
+                SELECT p.id_pinjam, b.judul_buku, u.nama_lengkap, p.status, 
+                    p.tgl_pinjam, p.tgl_kembali_seharusnya 
                 FROM peminjaman p
                 JOIN buku b ON p.id_buku = b.id_buku
                 JOIN user u ON p.id_peminjam = u.id_user
-            '''
+            """
             return conn.execute(query).fetchall()
     
-    def ambil_peminjaman_by_user(self, identifier):
+    def ambil_peminjaman_by_user(self, user_id):
         with self.get_connection() as conn:
-            query = '''
-                SELECT p.id_pinjam, b.judul_buku, u.nama_lengkap, p.status 
+            query = """
+                SELECT p.id_pinjam, b.judul_buku, u.nama_lengkap, p.status, 
+                    p.tgl_pinjam, p.tgl_kembali_seharusnya 
                 FROM peminjaman p
                 JOIN buku b ON p.id_buku = b.id_buku
                 JOIN user u ON p.id_peminjam = u.id_user
                 WHERE p.id_peminjam = ?
-            '''
-            return conn.execute(query, (identifier,)).fetchall()
+            """
+            return conn.execute(query, (user_id,)).fetchall()
 
     def cari_peminjaman(self, keyword):
         with self.get_connection() as conn:
-            # Cari berdasarkan nama peminjam atau judul buku
             query = '''
                 SELECT p.id_pinjam, b.judul_buku, u.nama_lengkap, p.status 
                 FROM peminjaman p
@@ -162,7 +134,6 @@ class DatabaseManager:
     def proses_peminjaman_baru(self, id_buku, id_user, status):
         with self.get_connection() as conn:
             tgl_sekarang = datetime.date.today().strftime("%Y-%m-%d")
-            # Default kembali 7 hari kemudian
             tgl_kembali = (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d")
             
             query = '''

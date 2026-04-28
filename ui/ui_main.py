@@ -11,7 +11,7 @@ class Ui_MainWindow:
         MainWindow.setGeometry(100, 100, 1100, 750)
         
         # =========================================================
-        # 1. MENU BAR (Navigasi Atas)
+        # 1. MENU BAR 
         # =========================================================
         self.menu_group = QActionGroup(MainWindow)
         self.menubar = MainWindow.menuBar()
@@ -45,7 +45,7 @@ class Ui_MainWindow:
         self.action_manajemen_buku.setChecked(True)
         
         # =========================================================
-        # 2. TOOLBAR (Akses Cepat dengan Ikon)
+        # 2. TOOLBAR 
         # =========================================================
         self.toolbar = QToolBar("Main Toolbar")
         MainWindow.addToolBar(Qt.TopToolBarArea, self.toolbar)
@@ -60,13 +60,13 @@ class Ui_MainWindow:
         # =========================================================
         self.central = QWidget()
         MainWindow.setCentralWidget(self.central)
-        self.main_layout = QVBoxLayout(self.central) # QV agar memenuhi layar
+        self.main_layout = QVBoxLayout(self.central) 
 
         self.stacked_widget = QStackedWidget()
         self.main_layout.addWidget(self.stacked_widget)
 
         # ---------------------------------------------------------
-        # HALAMAN 1: MANAJEMEN BUKU (Index 0)
+        # HALAMAN 1: MANAJEMEN BUKU 
         # ---------------------------------------------------------
         self.page_buku = QWidget()
         self.layout_buku = QVBoxLayout(self.page_buku)
@@ -113,7 +113,7 @@ class Ui_MainWindow:
         self.stacked_widget.addWidget(self.page_buku)
 
         # ---------------------------------------------------------
-        # HALAMAN 2: DATA PEMINJAM / LAPORAN (Index 1)
+        # HALAMAN 2: DATA PEMINJAM / LAPORAN
         # ---------------------------------------------------------
         self.page_peminjam = QWidget()
         self.layout_peminjam = QVBoxLayout(self.page_peminjam)
@@ -124,8 +124,11 @@ class Ui_MainWindow:
         self.layout_peminjam.addWidget(self.input_cari_peminjam)
 
         self.table_peminjam = QTableWidget()
-        self.table_peminjam.setColumnCount(4)
-        self.table_peminjam.setHorizontalHeaderLabels(["ID Pinjam", "Judul Buku", "Nama Peminjam", "Status"])
+        # Di dalam setup_ui pada ui_main.py
+        self.table_peminjam.setColumnCount(6)
+        self.table_peminjam.setHorizontalHeaderLabels([
+            "ID Pinjam", "Judul Buku", "Nama Peminjam", "Status", "Tgl Pinjam", "Tgl Kembali"
+        ])
         self.table_peminjam.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table_peminjam.setEditTriggers(QTableWidget.NoEditTriggers)
         self.layout_peminjam.addWidget(self.table_peminjam)
@@ -133,7 +136,7 @@ class Ui_MainWindow:
         self.stacked_widget.addWidget(self.page_peminjam)
 
         # ---------------------------------------------------------
-        # HALAMAN 3: DATA ANGGOTA & PINJAM (Index 2)
+        # HALAMAN 3: DATA ANGGOTA & PINJAM 
         # ---------------------------------------------------------
         self.page_3 = QWidget()
         self.verticalLayout_page3 = QVBoxLayout(self.page_3)
@@ -163,7 +166,7 @@ class Ui_MainWindow:
 
         self.verticalLayout_page3.addWidget(self.group_pinjam)
 
-        # Tabel Daftar User (Bawah)
+        # Tabel Daftar User
         self.verticalLayout_page3.addWidget(QLabel("👥 Daftar Seluruh Anggota:"))
         self.table_daftar_user = QTableWidget()
         self.table_daftar_user.setColumnCount(3)

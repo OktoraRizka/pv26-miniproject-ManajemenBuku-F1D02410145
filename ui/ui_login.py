@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt
 class Ui_LoginWindow:
     def setup_ui(self, LoginWindow):
         LoginWindow.setWindowTitle("Login - Sistem Manajemen Buku")
-        LoginWindow.setFixedSize(350, 250)  # Ukuran jendela login biasanya tetap
+        LoginWindow.setFixedSize(350, 250)  
 
         self.central_widget = QWidget()
         LoginWindow.setCentralWidget(self.central_widget)
